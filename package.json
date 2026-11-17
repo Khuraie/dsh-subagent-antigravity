@@ -1,6 +1,6 @@
 {
   "name": "dsh-subagent-antigravity",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "displayName": "Antigravity 子智能体",
   "description": "Run Google Antigravity CLI (agy) as a one-shot coding subagent in DeepSeek Harness: a subagent_antigravity delegation tool that can drive Gemini 4 Argon and the other Antigravity subscription models inside the parent workspace.",
   "license": "MIT",
@@ -49,18 +49,27 @@
     "bundle": {
       "patch": "./cordis.patch.yml"
     },
-    "manifestVersion": 1
+    "compatibility": {
+      "dshReleases": {
+        "0.2.1-rc.2": "compatible",
+        "0.2.2-rc.3": "compatible"
+      },
+      "dsh": ">=0.2.1-rc.2 <0.3.0-0"
+    }
   },
   "dependencies": {
-    "@deepseek-ai/schemastery": "~3.18.5"
+    "@deepseek-ai/schemastery": "~3.19.0"
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/PipeDream941/dsh-subagent-antigravity.git"
+    "url": "git+https://github.com/Khuraie/dsh-subagent-antigravity.git"
   },
-  "homepage": "https://github.com/PipeDream941/dsh-subagent-antigravity#readme",
+  "homepage": "https://github.com/Khuraie/dsh-subagent-antigravity#readme",
   "bugs": {
-    "url": "https://github.com/PipeDream941/dsh-subagent-antigravity/issues"
+    "url": "https://github.com/Khuraie/dsh-subagent-antigravity/issues"
   },
-  "author": "PipeDream941"
+  "author": "PipeDream941",
+  "contributors": [
+    "Khuraie (fork: DSH 0.2.2-rc.3 compatibility, Windows CLI discovery, account-disabled diagnostics)"
+  ]
 }

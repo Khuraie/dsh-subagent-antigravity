@@ -2,10 +2,11 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { chmodSync, mkdirSync, mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { delimiter, join } from 'node:path'
 
 import {
     INSTALL_HINT,
+    INSTALL_HINT_WINDOWS,
     executableNames,
     isExecutableFile,
     resolveAgyCommand,
@@ -34,7 +35,8 @@ test('platform-specific executable names', () => {
 
 test('searchDirectories is PATH first, then ~/.local/bin, deduplicated', () => {
     const home = '/Users/example'
-    const dirs = searchDirectories({ env: { PATH: '/usr/bin:/bin:/usr/bin' }, home })
+    const path = ['/usr/bin', '/bin', '/usr/bin'].join(delimiter)
+    const dirs = searchDirectories({ env: { PATH: path }, home, platform: 'darwin' })
     assert.equal(dirs[0], '/usr/bin')
     assert.equal(dirs.includes(join(home, '.local', 'bin')), true)
     assert.equal(new Set(dirs).size, dirs.length)
@@ -66,7 +68,8 @@ test('PATH lookup finds the CLI', () => {
     const dir = temporaryRoot('path')
     const bin = join(dir, 'bin')
     const stub = executableStub(bin, 'agy')
-    const resolved = resolveAgyCommand({ env: { PATH: `${bin}:/usr/bin` }, home: join(dir, 'home'), platform: 'darwin' })
+    const path = [bin, '/usr/bin'].join(delimiter)
+    const resolved = resolveAgyCommand({ env: { PATH: path }, home: join(dir, 'home'), platform: 'darwin' })
     assert.deepEqual(resolved, { ok: true, command: stub, source: 'path' })
 })
 
@@ -118,7 +121,36 @@ test('isExecutableFile rejects directories, missing and non-executable files', (
     const plain = join(dir, 'agy')
     writeFileSync(plain, 'not executable')
     chmodSync(plain, 0o644)
-    assert.equal(isExecutableFile(plain, { platform: 'darwin' }), false)
+    // chmod does not carry an execute bit on Windows, so the real-filesystem
+    // assertion is POSIX-only; an injected probe keeps the contract covered
+    // everywhere.
+    if (process.platform !== 'win32') {
+        assert.equal(isExecutableFile(plain, { platform: 'darwin' }), false)
+    }
+    assert.equal(isExecutableFile(plain, { platform: 'darwin', probe: () => false }), false)
     const stub = executableStub(dir, 'agy')
     assert.equal(isExecutableFile(stub, { platform: 'darwin' }), true)
+})
+
+test('windows install locations are searched without PATH', () => {
+    const root = temporaryRoot('win-localappdata')
+    const localAppData = join(root, 'AppData', 'Local')
+    const stub = executableStub(join(localAppData, 'agy', 'bin'), 'agy.exe')
+    const resolved = resolveAgyCommand({
+        env: { PATH: '', LOCALAPPDATA: localAppData, APPDATA: join(root, 'AppData', 'Roaming') },
+        home: join(root, 'home'),
+        platform: 'win32',
+    })
+    assert.deepEqual(resolved, { ok: true, command: stub, source: 'search' })
+})
+
+test('windows reports the PowerShell install command when nothing is found', () => {
+    const root = temporaryRoot('win-nothing')
+    const resolved = resolveAgyCommand({
+        env: { PATH: '', LOCALAPPDATA: join(root, 'no-local'), APPDATA: join(root, 'no-roaming') },
+        home: join(root, 'home'),
+        platform: 'win32',
+    })
+    assert.equal(resolved.ok, false)
+    assert.equal(resolved.error.includes(INSTALL_HINT_WINDOWS), true)
 })

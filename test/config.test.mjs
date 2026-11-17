@@ -95,3 +95,15 @@ test('the prompt is one argv element and is not duplicated', () => {
     assert.equal(args.filter(value => value === prompt).length, 1)
     assert.equal(args[args.indexOf('--print') + 1], prompt)
 })
+
+test('slash-command expansion is off by default and opt-in', () => {
+    assert.equal(resolveConfig({}).disableSlashCommands, false)
+    assert.equal(buildAntigravityArgs(resolveConfig({}), 'p').includes('--disable-slash-commands'), false)
+    assert.equal(resolveConfig({ disableSlashCommands: true }).disableSlashCommands, true)
+    assert.equal(
+        buildAntigravityArgs(resolveConfig({ disableSlashCommands: true }), 'p').includes('--disable-slash-commands'),
+        true,
+    )
+    // Only a real boolean opts in; a stray string must not flip the flag.
+    assert.equal(resolveConfig({ disableSlashCommands: 'yes' }).disableSlashCommands, false)
+})

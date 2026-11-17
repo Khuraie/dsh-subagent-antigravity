@@ -21,6 +21,14 @@ account subscription and can drive **Gemini 4 Argon** (`gemini-4-argon-low/mediu
 
 > Community plugin; not affiliated with Google. The Antigravity CLI is Google's
 > official CLI — this plugin only drives it from DSH.
+>
+> **Fork note.** This is a maintained fork of
+> [PipeDream941/dsh-subagent-antigravity](https://github.com/PipeDream941/dsh-subagent-antigravity)
+> (MIT). It adds DSH `0.2.2-rc.3` compatibility, Windows CLI discovery, an
+> account-disabled diagnostic that names the appeal path, a
+> `disableSlashCommands` option, and a test suite that passes on Windows. See
+> [CHANGELOG.md](./CHANGELOG.md).
+
 
 ## Why this plugin exists
 
@@ -59,10 +67,17 @@ return fixed stage/category diagnostics instead of raw stderr or credentials.
 
 | Dependency | Version / notes |
 |---|---|
-| DeepSeek Harness | `0.2.1-rc.2` series (`ctx.subagents` + `@deepseek-ai/dsh-tool-subagent`) |
+| DeepSeek Harness | `0.2.1-rc.2` … `0.2.2-rc.3` (`ctx.subagents` + `@deepseek-ai/dsh-tool-subagent`) |
 | Node.js | `^22.19.0` or `>=24` |
 | Google Antigravity CLI (`agy`) | official CLI, 1.4+; `agy --version` must answer |
 | Antigravity account | signed in through the Antigravity app or CLI (AI Pro / Ultra for Gemini 4 Argon) |
+
+> This plugin drives the **CLI**, not the desktop app. The app has no local API:
+> its Remote Control feature is an outbound relay to Google's browser dashboard,
+> and Google's docs state that the ACP server lives in the CLI (`agy acp`). The
+> CLI is the sanctioned automation surface, and it shares your app's sign-in,
+> models and subscription.
+
 
 Install the official CLI:
 
@@ -84,13 +99,20 @@ API key cannot reach Gemini 4 unless that key itself is entitled).
 
 ## Install the plugin
 
-**From the DSH plugin market (recommended):** search for
-`dsh-subagent-antigravity`, install and enable it.
-
-**From the command line:**
+**From this fork (recommended for DSH `0.2.2-rc.3`):**
 
 ```bash
-dsh plugin --profile desktop add dsh-subagent-antigravity
+dsh plugin --profile desktop add github:Khuraie/dsh-subagent-antigravity
+```
+
+**From the DSH plugin market:** search for `dsh-subagent-antigravity`, install
+and enable it. The registry copy tracks upstream; use the fork for the fixes in
+[CHANGELOG.md](./CHANGELOG.md).
+
+**From a local checkout:**
+
+```bash
+dsh plugin --profile desktop add /path/to/dsh-subagent-antigravity
 ```
 
 Then add the package to that profile's `package.json` → `dsh.profile.bundles`
@@ -135,6 +157,7 @@ Override the `subagent-antigravity` entry's `config` in a profile patch:
 | `mode` | empty | `accept-edits` / `auto` / `plan` (read-only) |
 | `skipPermissions` | `true` | pass `--dangerously-skip-permissions` so an unattended child can edit/run; with `false`, headless cannot prompt and write tools are auto-denied |
 | `sandbox` | `false` | pass `--sandbox` (the CLI's terminal sandbox) |
+| `disableSlashCommands` | `false` | pass `--disable-slash-commands` so a delegated prompt is never expanded as a slash command or skill |
 | `timeoutMs` | `900000` (15 min) | overall wall-clock budget per delegation |
 | `disposeGraceMs` | `5000` | SIGTERM→SIGKILL escalation grace |
 | `env` | `{}` | extra child environment variables |
@@ -169,18 +192,31 @@ Example — Gemini 4 Argon High, read-only:
 |---|---|
 | `Antigravity CLI (agy) was not found` | run the official install script and verify `agy --version` |
 | diagnostic `category: auth` | not signed in: run `agy` once and complete the Google sign-in |
+| diagnostic `category: tos` | the signed-in account is suspended for a Terms of Service violation: stop using third-party clients, revoke the Antigravity grant at [myaccount.google.com/permissions](https://myaccount.google.com/permissions), then submit the [appeal form](https://forms.gle/hGzM9MEUv2azZsrb9) **once** |
 | diagnostic `category: permission` | headless cannot prompt: keep `skipPermissions: true` or use `mode: plan` |
 | diagnostic `category: quota` | the model has no quota/rate left for this account right now |
 | diagnostic `category: timeout` | raise `timeoutMs` or split the task |
 | want to verify the machine | `npm run smoke` in the plugin checkout (one small Antigravity request) |
 
+> **Windows.** `agy` installs to `%LOCALAPPDATA%\agy\bin`, which a desktop-launched
+> host does not inherit on `PATH`; the resolver searches it (plus
+> `%LOCALAPPDATA%\Programs\agy\bin`, `%APPDATA%\agy\bin`, `%USERPROFILE%\.agy\bin`,
+> and the Program Files locations) before giving up.
+
+
 ## Compatibility and development
 
-- Unit tests: `npm test` (34 cases: config normalization, CLI discovery, and the
-  run layer's event parsing, timeout, cancellation, permission and failure mapping);
-- End-to-end self-check: `npm run smoke` (real `agy` + Gemini 4 Argon, expects PONG);
+- Unit tests: `npm test` (39 cases: config normalization, CLI discovery including
+  the Windows install locations, and the run layer's event parsing, timeout,
+  cancellation, permission, ToS and failure mapping). The suite passes on Windows
+  as well as POSIX.
+- End-to-end self-check: `npm run smoke` (real `agy` + a subscription model,
+  expects PONG), or `node scripts/real-check.mjs` to drive the real CLI through
+  the run layer and print the parsed result.
 - No private DSH packages are imported (only `@deepseek-ai/schemastery` for config
-  validation), so the run layer is unit-testable outside the host;
+  validation), so the run layer is unit-testable outside the host.
+- Verified on DeepSeek Harness `0.2.2-rc.3`: the bundle composes, the provider
+  registers on `ctx.subagents`, and a real delegation returns its final answer.
 - Reference implementation: official `@deepseek-ai/dsh-subagent-codex` (the
   one-process-per-run, one-turn, final-answer, safe-diagnostics contract).
 

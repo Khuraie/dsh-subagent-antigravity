@@ -115,6 +115,22 @@ test('an exited process without a terminal frame is a process-exit failure', asy
     assert.match(result.diagnostic, /category: process-exit|category: process/)
 })
 
+test('a suspended account is reported as a ToS failure with the appeal path', async () => {
+    const result = await settle(runScenario('account-disabled'))
+    assert.equal(result.stopReason, 'error')
+    assert.match(result.diagnostic, /category: tos/)
+    assert.match(result.diagnostic, /myaccount\.google\.com\/permissions/)
+    assert.match(result.diagnostic, /forms\.gle/)
+    // The raw upstream text never reaches the model-visible diagnostic.
+    assert.equal(/violation of Terms of Service\./.test(result.diagnostic), false)
+})
+
+test('a terminal ToS status maps to the same category', async () => {
+    const result = await settle(runScenario('account-disabled-status'))
+    assert.equal(result.stopReason, 'error')
+    assert.match(result.diagnostic, /category: tos/)
+})
+
 test('garbage stdout does not crash the runner', async () => {
     const result = await settle(runScenario('garbage'))
     assert.equal(result.stopReason, 'error')

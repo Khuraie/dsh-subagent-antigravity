@@ -59,6 +59,19 @@ switch (scenario) {
         emit({ event: 'step_update', step_update: { step_index: 1, state: 'ACTIVE', step_type: 'agent_response', text_delta: 'partial answer' } })
         break
     }
+    case 'account-disabled': {
+        // The shape `agy` produces when the signed-in account is suspended.
+        process.stderr.write(
+            'Error: 403 PERMISSION_DENIED: This service has been disabled in this account for '
+            + 'violation of Terms of Service. Please submit an appeal to continue using this product.\n',
+        )
+        process.exitCode = 1
+        break
+    }
+    case 'account-disabled-status': {
+        emit({ event: 'result', result: { status: 'TOS_VIOLATION', response: '', num_turns: 1 } })
+        break
+    }
     case 'slow-success': {
         await sleep(1500)
         emit({ event: 'result', result: { status: 'SUCCESS', response: 'slow but done', num_turns: 1 } })
@@ -73,4 +86,4 @@ switch (scenario) {
     }
 }
 
-process.exit(0)
+process.exit(process.exitCode ?? 0)
